@@ -6,6 +6,18 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Title>Giinn</Title>
+    <Description>Neat console user input.</Description>
+    <Authors>Zindre</Authors>
+    <RepositoryUrl>https://github.com/Zindre17/Giinn</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
-
+  
+  <ItemGroup>
+    <None Include="./Readme.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  
 </Project>
