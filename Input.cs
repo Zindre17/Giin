@@ -118,82 +118,56 @@ public static class Input
 
         var selected = false;
         var padding = new string(' ', selector.Length);
-        var position = 0;
+        var io = new ConsoleHandler(LineTrackingMode.Track);
+        var optionsCheckpointLabel = "options";
+        var choiceCheckpointLabel = "choice";
 
-        DisableCursor();
+        io.DisableCursor();
 
         PrintLabel();
 
-        Choose();
+        io.AddCheckpoint(optionsCheckpointLabel);
 
+        Choose();
         PrintChoice();
 
-        EnableCursor(null, null);
+        io.EnableCursor();
 
         return (index, options[index]);
-
-        void DisableCursor()
-        {
-            Console.CancelKeyPress += EnableCursor;
-            Console.CursorVisible = false;
-        }
-
-        void EnableCursor(object? _, EventArgs? __)
-        {
-            Console.CursorVisible = true;
-            Console.CancelKeyPress -= EnableCursor;
-        }
 
         void PrintLabel()
         {
             if (label is not null)
             {
-                Console.Write(label);
-                position = Console.CursorLeft + 1;
-                Console.WriteLine();
+                io.Write(label + " ");
             }
+            io.AddCheckpoint(choiceCheckpointLabel);
+            io.WriteLine();
         }
 
         void Choose()
         {
-
             while (!selected)
             {
                 PrintSelectionArea();
                 (index, selected) = HandleInput();
-                ClearSelectionArea();
             }
         }
 
-        void PrintChoice()
-        {
-            Console.CursorTop -= 1;
-            Console.CursorLeft = position;
-            Console.WriteLine(options[index]);
-        }
+        void PrintChoice() => io.WriteLineFromCheckpoint(choiceCheckpointLabel, options[index]);
 
-        (int, bool) HandleInput() =>
-            Console.ReadKey().Key switch
-            {
-                ConsoleKey.UpArrow or ConsoleKey.W => (MoveUp(), false),
-                ConsoleKey.DownArrow or ConsoleKey.D => (MoveDown(), false),
-                ConsoleKey.Enter => (index, true),
-                _ => (index, false)
-            };
-
-        void ClearSelectionArea()
+        (int, bool) HandleInput() => io.ReadKey().Key switch
         {
-            for (int i = 0; i < optionsToShow; i++)
-            {
-                Console.CursorTop -= 1;
-                Console.CursorLeft = 0;
-                Console.Write(new string(' ', Console.BufferWidth));
-            }
-            Console.CursorLeft = 0;
-        }
+            ConsoleKey.UpArrow or ConsoleKey.W => (MoveUp(), false),
+            ConsoleKey.DownArrow or ConsoleKey.D => (MoveDown(), false),
+            ConsoleKey.Enter => (index, true),
+            _ => (index, false)
+        };
 
         void PrintSelectionArea()
         {
+            io.ClearToCheckpoint(optionsCheckpointLabel);
+
             var doesNotShowTop = startIndex is not 0;
             var doesNotShowBottom = startIndex != options.Length - optionsToShow;
 
@@ -204,16 +178,16 @@ public static class Input
                     (i is 0 && doesNotShowTop)
                     || (i == optionsToShow - 1 && doesNotShowBottom))
                 {
-                    Console.WriteLine($"{padding} ...");
+                    io.WriteLine($"{padding} ...");
                     continue;
                 }
 
                 if (optionIndex == index)
                 {
-                    Console.WriteLine($"{selector} {options[optionIndex]}");
+                    io.WriteLine($"{selector} {options[optionIndex]}");
                     continue;
                 }
-                Console.WriteLine($"{padding} {options[optionIndex]}");
+                io.WriteLine($"{padding} {options[optionIndex]}");
             }
         }
 

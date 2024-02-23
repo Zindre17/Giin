@@ -6,6 +6,8 @@ internal enum LineTrackingMode
     DoNotTrack
 }
 
+internal record Checkpoint(int LinesWrittenOffset, int LinePosition);
+
 internal class ConsoleHandler
 {
     public ConsoleHandler(LineTrackingMode lineTracking)
@@ -15,6 +17,8 @@ internal class ConsoleHandler
 
     private int writtenLines;
     private readonly LineTrackingMode lineTracking;
+
+    private readonly Dictionary<string, Checkpoint> checkpoints = new();
 
     private void UpdateLineTracking(string? message)
     {
@@ -30,7 +34,41 @@ internal class ConsoleHandler
         writtenLines += lines;
     }
 
-    public void WriteLine(string? message)
+    public void AddCheckpoint(string label)
+    {
+        checkpoints.Add(label, new(writtenLines, Console.CursorLeft));
+    }
+
+    public void WriteLineFromCheckpoint(string label, string? message, bool clearLinesBetween = false)
+    {
+        if (!checkpoints.TryGetValue(label, out var checkpoint))
+        {
+            return;
+        }
+
+        if (clearLinesBetween)
+        {
+            ClearLines(writtenLines - checkpoint.LinesWrittenOffset);
+        }
+        else
+        {
+            Console.CursorTop -= writtenLines - checkpoint.LinesWrittenOffset;
+        }
+        Console.CursorLeft = checkpoint.LinePosition;
+        Console.WriteLine(message);
+    }
+
+    public void ClearToCheckpoint(string label)
+    {
+        if (!checkpoints.TryGetValue(label, out var checkpoint))
+        {
+            return;
+        }
+
+        ClearLines(writtenLines - checkpoint.LinesWrittenOffset);
+    }
+
+    public void WriteLine(string? message = null)
     {
         UpdateLineTracking(message);
         Console.WriteLine(message);
@@ -42,11 +80,7 @@ internal class ConsoleHandler
         Console.Write(message);
     }
 
-    public void ClearLines()
-    {
-        ClearLines(writtenLines);
-        writtenLines = 0;
-    }
+    public void ClearLines() => ClearLines(writtenLines);
 
     public string? ReadLine()
     {
@@ -54,10 +88,16 @@ internal class ConsoleHandler
         return Console.ReadLine();
     }
 
-    public static void ClearLines(int lines) => lines.AsIterations(_ => ClearLine());
-
-    public static void ClearLine()
+    public ConsoleKeyInfo ReadKey()
     {
+        return Console.ReadKey();
+    }
+
+    private void ClearLines(int lines) => lines.AsIterations(_ => ClearLine());
+
+    private void ClearLine()
+    {
+        UpdateLineTracking(-1);
         if (Console.CursorLeft is 0)
         {
             Console.CursorTop -= 1;
@@ -66,5 +106,19 @@ internal class ConsoleHandler
         Console.Write(new string(' ', Console.BufferWidth));
         Console.CursorLeft = 0;
         Console.CursorTop -= 1;
+    }
+
+    public void DisableCursor()
+    {
+        Console.CancelKeyPress += EnableCursor;
+        Console.CursorVisible = false;
+    }
+
+    public void EnableCursor() => EnableCursor(null, null);
+
+    private void EnableCursor(object? _, EventArgs? __)
+    {
+        Console.CursorVisible = true;
+        Console.CancelKeyPress -= EnableCursor;
     }
 }
