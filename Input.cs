@@ -35,10 +35,10 @@ public static class Input
         var isValid = true;
         var retries = 0;
         var endlessRetries = maximumRetries < 0;
-        var writtenLines = 0;
+        var io = new ConsoleHandler(LineTrackingMode.Track);
         do
         {
-            ClearLines();
+            io.ClearLines();
 
             if (!isValid)
             {
@@ -52,11 +52,6 @@ public static class Input
 
             (input, isValid) = TakeInput();
 
-            if (!endlessRetries && retries >= maximumRetries)
-            {
-                input = null;
-                break;
-            }
         } while (!isValid && (endlessRetries || retries < maximumRetries));
 
         return input;
@@ -65,8 +60,7 @@ public static class Input
         {
             if (retryMessage is not null)
             {
-                Console.WriteLine(retryMessage);
-                writtenLines += 1;
+                io.WriteLine(retryMessage + "\n");
             }
         }
 
@@ -74,27 +68,13 @@ public static class Input
         {
             var attempts = maximumRetries - retries++;
             var attemptString = attempts is 1 ? "attempt" : "attempts";
-            Console.WriteLine($"{attempts} {attemptString} remaining.");
-            writtenLines += 1;
-        }
-
-        void ClearLines()
-        {
-            for (int i = 0; i < writtenLines; i++)
-            {
-                Console.CursorTop -= 1;
-                Console.CursorLeft = 0;
-                Console.Write(new string(' ', Console.BufferWidth));
-            }
-            Console.CursorLeft = 0;
-            writtenLines = 0;
+            io.WriteLine($"{attempts} {attemptString} remaining.\n");
         }
 
         (string?, bool) TakeInput()
         {
-            Console.Write(label + " ");
-            var input = Console.ReadLine();
-            writtenLines += 1;
+            io.Write(label + " ");
+            var input = io.ReadLine();
             var isValid = validator?.Invoke(input) ?? true;
             return (input, isValid);
         }
