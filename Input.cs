@@ -35,7 +35,7 @@ public static class Input
         var isValid = true;
         var retries = 0;
         var endlessRetries = maximumRetries < 0;
-        var io = new ConsoleHandler(LineTrackingMode.Track);
+        var io = new ConsoleHandler();
         do
         {
             io.ClearLines();
@@ -118,7 +118,7 @@ public static class Input
 
         var selected = false;
         var padding = new string(' ', selector.Length);
-        var io = new ConsoleHandler(LineTrackingMode.Track);
+        var io = new ConsoleHandler();
         var optionsCheckpointLabel = "options";
         var choiceCheckpointLabel = "choice";
 
@@ -154,7 +154,7 @@ public static class Input
             }
         }
 
-        void PrintChoice() => io.WriteLineFromCheckpoint(choiceCheckpointLabel, options[index]);
+        void PrintChoice() => io.WriteLineFromCheckpoint(choiceCheckpointLabel, options[index], true);
 
         (int, bool) HandleInput() => io.ReadKey().Key switch
         {
@@ -234,9 +234,14 @@ public static class Input
     /// </returns>
     public static bool Confirm(string? label = null, bool @default = true)
     {
-        Console.Write($"{label} ({(@default ? "Y/n" : "y/N")}): ");
-        var position = Console.CursorLeft;
-        var input = Console.ReadLine()?.ToLower();
+        var io = new ConsoleHandler();
+
+        io.Write($"{label} ({(@default ? "Y/n" : "y/N")}): ");
+
+        var confirmationCheckpointLabel = "confirmation";
+        io.AddCheckpoint(confirmationCheckpointLabel);
+
+        var input = io.ReadLine()?.ToLower();
         var result = input switch
         {
             "y" or "yes" => true,
@@ -244,11 +249,9 @@ public static class Input
             _ => false
         };
 
-        Console.CursorTop -= 1;
-        Console.CursorLeft = position;
-        Console.Write(new string(' ', input?.Length ?? 0));
-        Console.CursorLeft = position;
-        Console.WriteLine(result ? "y" : "n");
+        io.ClearCharsFromCheckpoint(confirmationCheckpointLabel, input?.Length ?? 0);
+        io.WriteLineFromCheckpoint(confirmationCheckpointLabel, result ? "y" : "n");
+
         return result;
     }
 }

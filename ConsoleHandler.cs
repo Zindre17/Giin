@@ -1,42 +1,16 @@
 namespace Giinn;
 
-internal enum LineTrackingMode
-{
-    Track,
-    DoNotTrack
-}
-
-internal record Checkpoint(int LinesWrittenOffset, int LinePosition);
+internal record CursorPosition(int Left, int Top);
 
 internal class ConsoleHandler
 {
-    public ConsoleHandler(LineTrackingMode lineTracking)
-    {
-        this.lineTracking = lineTracking;
-    }
+    private readonly Dictionary<string, CursorPosition> checkpoints = new();
 
-    private int writtenLines;
-    private readonly LineTrackingMode lineTracking;
-
-    private readonly Dictionary<string, Checkpoint> checkpoints = new();
-
-    private void UpdateLineTracking(string? message)
-    {
-        UpdateLineTracking(message.Lines());
-    }
-
-    private void UpdateLineTracking(int lines)
-    {
-        if (lineTracking is not LineTrackingMode.Track)
-        {
-            return;
-        }
-        writtenLines += lines;
-    }
+    private int startingTop = Console.CursorTop;
 
     public void AddCheckpoint(string label)
     {
-        checkpoints.Add(label, new(writtenLines, Console.CursorLeft));
+        checkpoints.Add(label, new(Console.CursorLeft, Console.CursorTop));
     }
 
     public void WriteLineFromCheckpoint(string label, string? message, bool clearLinesBetween = false)
@@ -48,14 +22,10 @@ internal class ConsoleHandler
 
         if (clearLinesBetween)
         {
-            ClearLines(writtenLines - checkpoint.LinesWrittenOffset);
+            ClearLines(Console.CursorTop - 1 - checkpoint.Top);
         }
-        else
-        {
-            Console.CursorTop -= writtenLines - checkpoint.LinesWrittenOffset;
-        }
-        Console.CursorLeft = checkpoint.LinePosition;
-        Console.WriteLine(message);
+        SetCursorPosition(checkpoint);
+        WriteLine(message);
     }
 
     public void ClearToCheckpoint(string label)
@@ -65,27 +35,46 @@ internal class ConsoleHandler
             return;
         }
 
-        ClearLines(writtenLines - checkpoint.LinesWrittenOffset);
+        ClearLines(Console.CursorTop - checkpoint.Top);
     }
 
     public void WriteLine(string? message = null)
     {
-        UpdateLineTracking(message);
+        UpdateCheckpoints(GetBufferScrollAmount(message));
         Console.WriteLine(message);
+    }
+
+    private void UpdateCheckpoints(int scrollAmount)
+    {
+        foreach (var checkpoint in checkpoints)
+        {
+            checkpoints[checkpoint.Key] = new(checkpoint.Value.Left, Math.Max(checkpoint.Value.Top - scrollAmount, 0));
+        }
+        startingTop = Math.Max(startingTop - scrollAmount, 0);
+    }
+
+    private int GetBufferScrollAmount(string? message)
+    {
+        var newTop = Console.CursorTop + message.Lines();
+        return Math.Max(newTop - (Console.WindowHeight - 1), 0);
     }
 
     public void Write(string? message)
     {
-        UpdateLineTracking(message.Lines() - 1);
+        UpdateCheckpoints(GetBufferScrollAmount(message) - 1);
         Console.Write(message);
     }
 
-    public void ClearLines() => ClearLines(writtenLines);
+    public void ClearLines() => ClearLines(Console.CursorTop - startingTop);
 
     public string? ReadLine()
     {
-        UpdateLineTracking(1);
-        return Console.ReadLine();
+        var result = Console.ReadLine();
+        if (Console.CursorTop >= (Console.WindowHeight - 1))
+        {
+            UpdateCheckpoints(1);
+        }
+        return result;
     }
 
     public ConsoleKeyInfo ReadKey()
@@ -97,8 +86,7 @@ internal class ConsoleHandler
 
     private void ClearLine()
     {
-        UpdateLineTracking(-1);
-        if (Console.CursorLeft is 0)
+        if (Console.CursorLeft is 0 && Console.CursorTop is not 0)
         {
             Console.CursorTop -= 1;
         }
@@ -106,6 +94,27 @@ internal class ConsoleHandler
         Console.Write(new string(' ', Console.BufferWidth));
         Console.CursorLeft = 0;
         Console.CursorTop -= 1;
+    }
+
+    private static void SetCursorPosition(CursorPosition position)
+    {
+        Console.SetCursorPosition(position.Left, position.Top);
+    }
+
+    public void ClearCharsFromCheckpoint(string label, int chars)
+    {
+        if (!checkpoints.TryGetValue(label, out var checkpoint))
+        {
+            return;
+        }
+        SetCursorPosition(checkpoint);
+        ClearChars(chars);
+    }
+
+    public void ClearChars(int chars)
+    {
+        Console.Write(new string(' ', chars));
+        Console.CursorLeft -= chars;
     }
 
     public void DisableCursor()
