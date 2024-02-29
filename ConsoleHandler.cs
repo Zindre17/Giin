@@ -1,6 +1,11 @@
 namespace Giinn;
 
-internal record CursorPosition(int Left, int Top);
+internal record CursorPosition(int Left, int Top)
+{
+    public CursorPosition Scroll(int lines) => new(Left, Math.Max(Top - lines, 0));
+
+    public static implicit operator CursorPosition((int Left, int Top) tuple) => new(tuple.Left, tuple.Top);
+};
 
 internal class ConsoleHandler
 {
@@ -10,7 +15,7 @@ internal class ConsoleHandler
 
     public void AddCheckpoint(string label)
     {
-        checkpoints.Add(label, new(Console.CursorLeft, Console.CursorTop));
+        checkpoints.Add(label, Console.GetCursorPosition());
     }
 
     public void WriteLineFromCheckpoint(string label, string? message, bool clearLinesBetween = false)
@@ -48,7 +53,7 @@ internal class ConsoleHandler
     {
         foreach (var checkpoint in checkpoints)
         {
-            checkpoints[checkpoint.Key] = new(checkpoint.Value.Left, Math.Max(checkpoint.Value.Top - scrollAmount, 0));
+            checkpoints[checkpoint.Key] = checkpoint.Value.Scroll(scrollAmount);
         }
         startingTop = Math.Max(startingTop - scrollAmount, 0);
     }
